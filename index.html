@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>آزمون طرحواره‌های نعیمی</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://v1.fontapi.ir/css/Vazir');
+        
+        body { 
+            font-family: 'Vazir', sans-serif; 
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .option-button {
+            transition: all 0.3s ease;
+        }
+
+        .option-button:hover:not(.selected) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+        }
+
+        .option-button.selected {
+            background-color: #3B82F6;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .progress-bar {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, 
+                rgba(255,255,255,0) 0%,
+                rgba(255,255,255,0.5) 50%,
+                rgba(255,255,255,0) 100%);
+            animation: shine 1.5s infinite;
+        }
+
+        @keyframes shine {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(100%); }
+        }
+
+        .nav-button {
+            transition: all 0.3s ease;
+        }
+
+        .nav-button:not(:disabled):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+        }
+
+        .results-card {
+            transition: all 0.3s ease;
+        }
+
+        .results-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px -1px rgba(59, 130, 246, 0.1);
+        }
+    </style>
+</head>
+<body dir="rtl" class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen flex items-center justify-center py-10">
+    <div class="container mx-auto max-w-4xl bg-white shadow-2xl rounded-2xl overflow-hidden fade-in">
+        <div class="p-8">
+            <h1 class="text-3xl font-bold text-center text-blue-800 mb-6 slide-in">آزمون طرحواره‌های روانشناختی</h1>
+            
+            <!-- Instructions Section -->
+            <div id="instructions" class="text-center space-y-6 fade-in">
+                <div class="bg-blue-100 p-6 rounded-xl hover:shadow-lg transition-all duration-300">
+                    <h2 class="text-xl font-semibold text-blue-900 mb-4">راهنمای آزمون</h2>
+                    <p class="text-gray-700 leading-relaxed">
+                        این آزمون به منظور شناخت الگوهای رفتاری و احساسی شما طراحی شده است. 
+                        لطفاً به هر گویه به دقت توجه کرده و صادقانه پاسخ دهید. 
+                        برای هر گویه، میزان موافقت خود را از ۱ (کاملاً غلط) تا ۶ (کاملاً درست) مشخص کنید.
+                    </p>
+                </div>
+                <button id="start" class="mx-auto block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-all text-lg hover:shadow-lg transform hover:-translate-y-1">
+                    شروع آزمون
+                </button>
+            </div>
+
+            <!-- Quiz Section -->
+            <div id="quiz" class="hidden fade-in">
+                <div class="mb-6">
+                    <div id="progress-bar" class="h-2 bg-blue-200 rounded-full progress-bar">
+                        <div id="progress" class="h-full bg-blue-600 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                    </div>
+                    <div class="text-center text-sm text-gray-600 mt-2">
+                        سوال <span id="current-question">1</span> از <span id="total-questions">15</span>
+                    </div>
+                </div>
+
+                <div id="question-container" class="mb-6 slide-in"></div>
+
+                <div class="flex justify-between">
+                    <button id="prev" class="nav-button bg-gray-500 text-white py-2 px-6 rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        سوال قبلی
+                    </button>
+                    <button id="next" class="nav-button bg-blue-500 text-white py-2 px-6 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        سوال بعدی
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results" class="hidden fade-in">
+                <h2 class="text-2xl font-bold text-center text-blue-800 mb-6">نتایج آزمون</h2>
+                
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+                    <canvas id="resultsChart"></canvas>
+                </div>
+
+                <div class="grid md:grid-cols-1 gap-6 mt-6">
+                    <div id="results-interpretation" class="bg-blue-50 p-6 rounded-xl w-full grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+
+                <div class="mt-8 text-center space-y-4">
+                    <button id="download-report" class="bg-green-500 text-white px-8 py-3 rounded-lg hover:bg-green-600 transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1">
+                        دانلود گزارش
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+
+const questions = [
+    { id: 1, text: "اغلب کسی را ندارم که از من حمایت کند.", scale: "Ed" },
+    { id: 2, text: "من به افراد نزدیک خیلی وابسته‌ام.", scale: "Ab" },
+    { id: 3, text: "احساس می‌کنم مردم از من سوءاستفاده می‌کنند.", scale: "Ma" },
+    { id: 4, text: "احساس می‌کنم در جمع وصله ناجور هستم.", scale: "Si" },
+    { id: 5, text: "وقتی عیب‌های مرا ببینند، نمی‌توانند دوستم داشته باشند.", scale: "Ds" },
+    { id: 6, text: "تقریباً هیچ کاری را نمی‌توانم به خوبی دیگران انجام دهم.", scale: "Fa" },
+    { id: 7, text: "احساس می‌کنم نمی‌توانم به تنهایی از پس کارهای زندگی روزمره بر بیایم.", scale: "Di" },
+    { id: 8, text: "نمی‌توانم از شر این احساس رها شوم که مبادا اتفاق بدی بیفتد.", scale: "Vhi" },
+    { id: 9, text: "قادر نیستم از والدینم جدا شوم.", scale: "Eu" },
+    { id: 10, text: "اعتقاد دارم که اگر بخواهم هر کاری انجام بدهم، برای خودم دردسر درست می‌کنم.", scale: "Sb" },
+    { id: 11, text: "در نهایت، کار مراقبت از نزدیکانم روی دوش من است.", scale: "Ss" },
+    { id: 12, text: "از اینکه احساسات مثبت خودم را به دیگران ابراز کنم، خیلی خجالت می‌کشم.", scale: "Ei" },
+    { id: 13, text: "احساس می‌کنم باید در هر کاری که انجام می‌دهم بهترین باشم.", scale: "Eg" },
+    { id: 14, text: "خیلی برایم سخت است که وقتی از کسی چیزی می‌خواهم، جواب 'نه' بشنوم.", scale: "Ar" },
+    { id: 15, text: "حوصله انجام کارهای متداول زندگی یا کارهای معمول را ندارم.", scale: "Is" }];
+
+
+        const scaleDescriptions = {
+    Ed: {
+        title: "محرومیت هیجانی",
+        description: "احساس عدم دریافت حمایت عاطفی، محبت، یا همدلی از دیگران."
+    },
+    Ab: {
+        title: "رهاشدگی",
+        description: "ترس از ترک شدن توسط افراد مهم زندگی و عدم اطمینان به تداوم روابط."
+    },
+    Ma: {
+        title: "بی‌اعتمادی / سوءاستفاده",
+        description: "باور به اینکه دیگران قصد سوءاستفاده یا خیانت دارند."
+    },
+    Si: {
+        title: "انزوای اجتماعی",
+        description: "احساس متفاوت بودن از دیگران و ناتوانی در ارتباط با جمع."
+    },
+    Ds: {
+        title: "نقص / شرم",
+        description: "احساس عدم ارزشمندی و شرمساری از عیب‌های خود."
+    },
+    Fa: {
+        title: "شکست",
+        description: "باور به اینکه در مقایسه با دیگران شکست خورده یا ناکام هستید."
+    },
+    Di: {
+        title: "وابستگی / بی‌کفایتی",
+        description: "احساس ناتوانی در انجام کارها یا تصمیم‌گیری بدون کمک دیگران."
+    },
+    Vhi: {
+        title: "آسیب‌پذیری به ضرر یا خطر",
+        description: "ترس از وقوع فجایع یا اتفاقات خطرناک در زندگی."
+    },
+    Eu: {
+        title: "گرفتار بودن",
+        description: "درگیر شدن بیش از حد در زندگی دیگران و نادیده گرفتن نیازهای شخصی."
+    },
+    Sb: {
+        title: "اطاعت",
+        description: "قربانی کردن نیازهای خود برای راضی نگه داشتن دیگران."
+    },
+    Ss: {
+        title: "ایثار",
+        description: "تمایل به فداکاری بیش از حد برای دیگران با نادیده گرفتن نیازهای خود."
+    },
+    Ei: {
+        title: "بازداری هیجانی",
+        description: "سرکوب احساسات یا تمایلات به دلیل ترس از واکنش‌های دیگران."
+    },
+    Eg: {
+        title: "استحقاق",
+        description: "احساس حق‌طلبی یا برتری نسبت به دیگران."
+    },
+    Is: {
+        title: "خودانضباطی ناکافی",
+        description: "ناتوانی در پذیرش محدودیت‌ها یا دستیابی به اهداف بلندمدت."
+    },
+    Ar: {
+        title: "پذیرش‌جویی / جلب توجه",
+        description: "تمایل به تایید گرفتن و جلب توجه دیگران برای احساس ارزشمندی."
+    },
+    Np: {
+        title: "منفی‌گرایی / بدبینی",
+        description: "تمایل به تمرکز بر جنبه‌های منفی زندگی و انتظار وقوع اتفاقات بد."
+    },
+    Pu: {
+        title: "تنبیه",
+        description: "باور به اینکه افراد (از جمله خودتان) باید به دلیل اشتباهاتشان تنبیه شوند."
+    }
+};
+    // تعریف متغیرهای اصلی
+    let currentQuestion = 0;
+    let answers = Array(questions.length).fill(null);
+
+    // **تابع اصلی برای شروع برنامه**
+    function initApp() {
+        document.getElementById("start").addEventListener("click", startQuiz);
+        document.getElementById("prev").addEventListener("click", prevQuestion);
+        document.getElementById("next").addEventListener("click", nextQuestion);
+        document.getElementById("download-report").addEventListener("click", downloadReport);
+
+        // نمایش تعداد سوالات
+        document.getElementById("total-questions").textContent = questions.length;
+    }
+
+    // **تابع شروع آزمون**
+    function startQuiz() {
+        document.getElementById("instructions").classList.add("hidden");
+        document.getElementById("quiz").classList.remove("hidden");
+        loadQuestion();
+    }
+
+    // **تابع بارگذاری سوال**
+    function loadQuestion() {
+        const question = questions[currentQuestion];
+        const container = document.getElementById("question-container");
+
+        container.innerHTML = `
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <div class="text-xl font-medium mb-6 text-gray-800">${currentQuestion + 1}. ${question.text}</div>
+                <div class="grid grid-cols-6 gap-4">
+                    ${[1, 2, 3, 4, 5, 6]
+                        .map(value => `
+                            <button class="option-button py-4 px-2 rounded-lg border-2 border-blue-200 hover:border-blue-500 
+                                       ${answers[currentQuestion] === value ? 'bg-blue-500 text-white' : ''}"
+                                    data-value="${value}">
+                                ${value}
+                            </button>
+                        `)
+                        .join("")}
+                </div>
+            </div>
+        `;
+
+        // مدیریت انتخاب پاسخ
+        document.querySelectorAll('.option-button').forEach(button => {
+            button.addEventListener('click', () => {
+                answers[currentQuestion] = parseInt(button.getAttribute('data-value'));
+                loadQuestion(); // به‌روزرسانی ظاهر دکمه‌ها
+                document.getElementById("next").disabled = false;
+            });
+        });
+
+        // به‌روزرسانی وضعیت سوالات و پیشرفت
+        document.getElementById("current-question").textContent = currentQuestion + 1;
+        updateProgress();
+        updateNavigationButtons();
+    }
+
+    // **تابع به‌روزرسانی نوار پیشرفت**
+    function updateProgress() {
+        const progress = ((currentQuestion + 1) / questions.length) * 100;
+        document.getElementById("progress").style.width = `${progress}%`;
+    }
+
+    // **تابع به‌روزرسانی دکمه‌های ناوبری**
+    function updateNavigationButtons() {
+        document.getElementById("prev").disabled = currentQuestion === 0;
+        document.getElementById("next").disabled = answers[currentQuestion] === null;
+        document.getElementById("next").textContent =
+            currentQuestion === questions.length - 1 ? "پایان و مشاهده نتایج" : "سوال بعدی";
+    }
+
+    // **تابع برای سوال قبلی**
+    function prevQuestion() {
+        if (currentQuestion > 0) {
+            currentQuestion--;
+            loadQuestion();
+        }
+    }
+
+    // **تابع برای سوال بعدی**
+    function nextQuestion() {
+        if (answers[currentQuestion] === null) {
+            Swal.fire("لطفاً به سوال پاسخ دهید", "", "warning");
+            return;
+        }
+        if (currentQuestion < questions.length - 1) {
+            currentQuestion++;
+            loadQuestion();
+        } else {
+            showResults();
+        }
+    }
+
+    // **تابع محاسبه نتایج**
+    function calculateResults() {
+        const results = {};
+        Object.keys(scaleDescriptions).forEach(scale => {
+            results[scale] = questions
+                .filter(q => q.scale === scale)
+                .reduce((sum, q) => {
+                    const index = questions.findIndex(question => question.id === q.id);
+                    return sum + (answers[index] || 0);
+                }, 0);
+        });
+        return results;
+    }
+
+    // **تابع نمایش نتایج**
+    function showResults() {
+        document.getElementById("quiz").classList.add("hidden");
+        document.getElementById("results").classList.remove("hidden");
+
+        const results = calculateResults();
+        renderChart(results);
+        renderInterpretation(results);
+    }
+
+    // **تابع رسم نمودار**
+    function renderChart(results) {
+        const ctx = document.getElementById("resultsChart").getContext("2d");
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(results).map(key => scaleDescriptions[key].title),
+                datasets: [{
+                    label: 'امتیاز مقیاس‌ها',
+                    data: Object.values(results),
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // **تابع نمایش تفسیر نتایج**
+    function renderInterpretation(results) {
+        const interpretationContainer = document.getElementById("results-interpretation");
+        let interpretation = "";
+
+        Object.entries(results).forEach(([scale, score]) => {
+            const scaleInfo = scaleDescriptions[scale];
+            interpretation += `
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h4 class="font-semibold text-blue-800 text-lg mb-2">${scaleInfo.title}</h4>
+                    <p class="text-gray-700 mb-3">${scaleInfo.description}</p>
+                    <p class="text-gray-800 font-bold">امتیاز شما: ${score}</p>
+                </div>
+            `;
+        });
+
+        interpretationContainer.innerHTML = interpretation;
+    }
+
+    // **تابع دانلود گزارش**
+    async function downloadReport() {
+        const resultsSection = document.getElementById("results");
+        const canvas = await html2canvas(resultsSection);
+        const link = document.createElement("a");
+        link.download = "report.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    }
+
+    // مقداردهی اولیه برنامه
+    initApp();
+</script>
+
+</body>
+</html
